@@ -1,5 +1,6 @@
 require 'ilabs/bistro'
 require 'ilabs/bistro/induct'
+require 'ilabs/apple_ios/mobile_provision'
 
 require 'osx/cocoa'
 include OSX
@@ -9,6 +10,14 @@ def main
 end
 
 class XCAppArchiveInductor < ILabs::Bistro::Inductor
+	def add_option_parser_flags(opts)
+		@provision = true
+		
+		opts.on('-p', '--[no-]provisioning', 'Induct (or prevent inducting) the provisioning profile for the app archive into the vault, if not already present. The default is to induct.') do |provision|
+			@provision = provision
+		end
+	end
+	
 	def options= o
 		@options = o
 		@app_archive_info = nil
@@ -36,7 +45,22 @@ class XCAppArchiveInductor < ILabs::Bistro::Inductor
 	
 	def files_to_copy
 		[source_path.subpath('ArchiveInfo.plist'), source_path.subpath( app_archive_info['XCApplicationFilename']), source_path.subpath(app_archive_info['XCApplicationFilename'] + '.dSYM')]
-	end	
+	end
+	
+	def induct(v)
+		super(v)
+		
+		profile_uuid = app_archive_info['XCProfileUUID']
+		if profile_uuid and @provision
+			profile_vault_id = [platform, 'ProvisioningProfiles', profile_uuid].join '/'
+			a = ILabs::Bistro::Artifact.at(v.path.subpath(profile_vault_id))
+			if not a
+				m = ILabs::Apple_iOS::MobileProvision.select { |m| m.uuid == profile_uuid }
+				a = v.induct_into(profile_vault_id, [m.path])
+				a.save
+			end
+		end
+	end
 end
 
 main
