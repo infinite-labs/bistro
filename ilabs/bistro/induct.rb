@@ -64,6 +64,10 @@ module ILabs::Bistro
 				options[:identifier] = ident
 			end
 			
+			opts.on('-D', '--debug', 'Shows debug logging.') do |debug|
+				ILabs::Bistro.debug = debug
+			end
+			
 			inductor.add_option_parser_flags(opts)
 		end.parse!(args)
 		
