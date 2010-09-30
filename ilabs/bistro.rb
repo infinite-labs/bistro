@@ -4,9 +4,18 @@ require File.join(File.dirname(__FILE__), 'uuid.rb')
 
 module ILabs; end
 module ILabs::Bistro
+	@debug = false
+	def self.debug(x)
+		$stderr.puts " DEBUG: == #{x.inspect} ==" if @debug
+	end
+	
+	def self.debug=(d)
+		@debug = d
+	end
 
 	class Artifact
 		def self.at(p)
+			p = Path.new p if p.kind_of? String
 			return nil unless p.subpath('ArtifactInfo.json').exist?
 			self.new p
 		end
@@ -85,8 +94,10 @@ module ILabs::Bistro
 		def starting_from(other)
 			raise unless other.parent_of? self
 			new_pc = path_components.dup
+			ILabs::Bistro.debug new_pc
 			new_pc[0, other.path_components.length] = []
-			Path.new new_pc
+			ILabs::Bistro.debug new_pc
+			new_pc.join '/'
 		end
 		
 		def method_missing(name, *args)
@@ -149,9 +160,10 @@ module ILabs::Bistro
 		
 		def add_artifact(a)
 			raise "This artifact is not in the Vault!" unless path.parent_of? a.path
-			path = a.path.starting_from(self.path).to_s
-			unless @meta['Artifacts'].include? path
-				@meta['Artifacts'] << path
+			a.save
+			p = a.path.starting_from(self.path).to_s
+			unless @meta['Artifacts'].include? p
+				@meta['Artifacts'] << p
 				save
 			end
 		end
@@ -181,6 +193,10 @@ module ILabs::Bistro
 			meta_file.open('w') do |file|
 				JSON.dump(@meta, file)
 			end
+		end
+		
+		def artifact_at(*p)
+			Artifact.at path.subpath(*p)
 		end
 		
 	end
